@@ -1,0 +1,128 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+@prefix me:   <http://example.org/master-eval#> .
+
+
+
+
+
+me:Etudiant a rdfs:Class ;
+
+  rdfs:label "Étudiant"@fr ;
+
+  rdfs:comment "Étudiant inscrit dans un Master."@fr .
+
+
+
+me:Cours a rdfs:Class ;
+
+  rdfs:label "Cours"@fr ;
+
+  rdfs:comment "Cours dispensé dans le cadre du Master."@fr .
+
+
+
+me:Master a rdfs:Class ;
+
+  rdfs:label "Master"@fr ;
+
+  rdfs:comment "Parcours de Master."@fr .
+
+
+
+me:Evaluation a rdfs:Class ;
+
+  rdfs:label "Évaluation"@fr ;
+
+  rdfs:comment "Évaluation d'un étudiant dans un cours (examen, contrôle continu…)."@fr .
+
+
+
+me:Note a rdfs:Class ;
+
+  rdfs:label "Note"@fr ;
+
+  rdfs:comment "Note chiffrée ou qualitative attribuée lors d'une évaluation."@fr .
+
+
+
+
+
+
+me:concerneEtudiant a rdf:Property ;
+
+  rdfs:label "concerne l'étudiant"@fr ;
+
+  rdfs:domain me:Evaluation ;
+
+  rdfs:range me:Etudiant .
+
+
+
+me:concerneCours a rdf:Property ;
+
+  rdfs:label "concerne le cours"@fr ;
+
+  rdfs:domain me:Evaluation ;
+
+  rdfs:range me:Cours .
+
+
+
+me:aNote a rdf:Property ;
+
+  rdfs:label "a pour note"@fr ;
+
+  rdfs:domain me:Evaluation ;
+
+  rdfs:range me:Note .
+
+
+
+me:appartientAuMaster a rdf:Property ;
+
+  rdfs:label "appartient au Master"@fr ;
+
+  rdfs:domain me:Cours ;
+
+  rdfs:range me:Master .
+
+
+
+
+
+
+
+me:valeurNote a rdf:Property ;
+
+  rdfs:label "valeur de la note"@fr ;
+
+  rdfs:domain me:Note ;
+
+  rdfs:range xsd:decimal .
+
+
+
+me:dateEvaluation a rdf:Property ;
+
+  rdfs:label "date de l'évaluation"@fr ;
+
+  rdfs:domain me:Evaluation ;
+
+  rdfs:range xsd:date .
+
+
+
+me:coefficient a rdf:Property ;
+
+  rdfs:label "coefficient de l'évaluation"@fr ;
+
+  rdfs:domain me:Evaluation ;
+
+  rdfs:range xsd:decimal .
+
+

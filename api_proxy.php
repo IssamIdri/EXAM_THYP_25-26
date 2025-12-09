@@ -40,6 +40,21 @@ if (isset($_GET['resource_class_id'])) {
     $apiUrl .= '&resource_class_id=' . urlencode($_GET['resource_class_id']);
 }
 
+// Déterminer la méthode HTTP
+$method = $_SERVER['REQUEST_METHOD'];
+$postData = null;
+
+// Si c'est une requête POST, récupérer les données
+if ($method === 'POST') {
+    $input = file_get_contents('php://input');
+    $postData = json_decode($input, true);
+    
+    // Si les données contiennent une action 'create', préparer les données
+    if (isset($postData['action']) && $postData['action'] === 'create' && isset($postData['data'])) {
+        $postData = $postData['data'];
+    }
+}
+
 // Initialiser cURL
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $apiUrl);
@@ -52,6 +67,16 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Accept: application/json',
     'Content-Type: application/json'
 ]);
+
+// Configurer la méthode HTTP
+if ($method === 'POST') {
+    curl_setopt($ch, CURLOPT_POST, true);
+    if ($postData !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+    }
+} else {
+    curl_setopt($ch, CURLOPT_HTTPGET, true);
+}
 
 // Exécuter la requête
 $response = curl_exec($ch);

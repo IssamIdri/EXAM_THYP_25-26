@@ -1,0 +1,4 @@
+id_evaluation;id_cours;id_etudiant;type_eval;date_eval;coefficient
+EV1;C1;E1;Examen;2025-01-15;1.0
+EV2;C1;E2;Examen;2025-01-15;1.0
+EV3;C2;E3;Projet;2025-02-10;2.0

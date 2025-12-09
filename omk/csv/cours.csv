@@ -1,0 +1,4 @@
+id_cours;code;titre;description;id_master
+C1;WEB101;Introduction au Web;Bases du fonctionnement du Web.;M1
+C2;SEM201;Web sémantique;Ontologies, RDF, SPARQL.;M1
+C3;JS301;Programmation JavaScript;JS côté client.;M1

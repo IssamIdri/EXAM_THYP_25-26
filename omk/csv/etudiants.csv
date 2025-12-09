@@ -1,0 +1,4 @@
+id_etudiant;numero;nom;prenom;email;id_master
+E1;E001;Dupont;Alice;alice.dupont@example.org;M1
+E2;E002;Martin;Bob;bob.martin@example.org;M1
+E3;E003;Durand;Charlie;charlie.durand@example.org;M1

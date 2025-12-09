@@ -133,12 +133,17 @@
                 // Filtrer et transformer les données Omeka S
                 const cours = [];
                 
+                console.log(`Total items reçus: ${items.length}`);
+                
                 for (const item of items) {
                     // Vérifier si l'item est de type "Cours" selon le vocabulaire
                     const itemType = item['o:resource_class'] ? item['o:resource_class']['@id'] : null;
                     const isCours = itemType && itemType.includes('master-eval#Cours');
                     
+                    console.log(`Item ${item['o:id']}: type=${itemType}, isCours=${isCours}`);
+                    
                     // Alternative: vérifier par resource template ou par propriété
+                    // Pour le test, on accepte aussi les items avec un titre (peut être temporaire)
                     if (isCours || item['o:resource_template'] || item['dcterms:title']) {
                         const coursItem = {
                             id: item['o:id'] || item.id || '',
@@ -189,6 +194,7 @@
                     }
                 }
 
+                console.log(`Cours trouvés: ${cours.length}`);
                 return cours;
             } catch (error) {
                 console.error('Erreur lors de la récupération des cours:', error);

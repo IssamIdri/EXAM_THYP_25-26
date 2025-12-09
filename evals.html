@@ -222,9 +222,13 @@
                 // Filtrer et transformer les évaluations
                 const evals = [];
                 
+                console.log(`Total items reçus: ${items.length}`);
+                
                 for (const item of items) {
                     const itemType = item['o:resource_class'] ? item['o:resource_class']['@id'] : null;
                     const isEvaluation = itemType && itemType.includes('master-eval#Evaluation');
+                    
+                    console.log(`Item ${item['o:id']}: type=${itemType}, isEvaluation=${isEvaluation}`);
                     
                     if (isEvaluation) {
                         const evalItem = {
@@ -295,6 +299,7 @@
                     }
                 }
 
+                console.log(`Évaluations trouvées: ${evals.length}`);
                 return evals;
             } catch (error) {
                 console.error('Erreur lors de la récupération des évaluations:', error);

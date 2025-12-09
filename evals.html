@@ -58,14 +58,15 @@
     <div id="error" style="text-align: center; padding: 20px; color: red; display: none;"></div>
 
     <script>
-        // Configuration du proxy PHP (contourne CORS)
-        const PROXY_URL = 'api_proxy.php';
-        const OMEKA_S_URL = 'http://localhost/omk_thyp_25-26_clone';
+        const API_URL = 'api_bdd.php';
         
-        // Fonction pour enregistrer une évaluation via l'API Omeka S
+        // Configuration Omeka S (gardée pour référence)
+        const OMEKA_S_URL = 'http://localhost/omk_thyp_25-26_clone';
+        const KEY_IDENTITY = 'EI6g2wROVTOiIBHmTf0roMIL647UenRu';
+        const KEY_CREDENTIAL = 'JaOh8wKwDo2hTiR66uDjiMGaYoNsCiOj';
+        
         async function setEval(evaluationData) {
             try {
-                // Préparer les données de l'évaluation selon le vocabulaire
                 const evalItem = {
                     '@type': 'o:Item',
                     'o:resource_class': {
@@ -101,9 +102,7 @@
                     ]
                 };
 
-                // Créer la note associée
                 if (evaluationData.note !== undefined) {
-                    // D'abord créer la note
                     const noteItem = {
                         '@type': 'o:Item',
                         'o:resource_class': {
@@ -117,7 +116,6 @@
                         ]
                     };
 
-                    // Envoyer la note via le proxy
                     const noteResponse = await fetch(PROXY_URL, {
                         method: 'POST',
                         headers: {
@@ -135,7 +133,6 @@
                         const noteResult = await noteResponse.json();
                         const noteId = noteResult['o:id'];
                         
-                        // Ajouter la référence à la note dans l'évaluation
                         evalItem['me:aNote'] = [
                             {
                                 'o:id': noteId
@@ -144,7 +141,6 @@
                     }
                 }
 
-                // Envoyer l'évaluation via le proxy
                 const response = await fetch(PROXY_URL, {
                     method: 'POST',
                     headers: {
@@ -171,10 +167,9 @@
             }
         }
 
-        // Fonction pour récupérer les évaluations depuis Omeka S
         async function getEvals() {
             try {
-                const url = `${PROXY_URL}?endpoint=items`;
+                const url = `${API_URL}?endpoint=evals`;
                 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -196,107 +191,11 @@
                     throw new Error(errorMessage);
                 }
 
-                const responseText = await response.text();
-                let items;
-                try {
-                    items = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('Réponse reçue:', responseText.substring(0, 500));
-                    throw new Error(`Erreur de parsing JSON: ${e.message}`);
-                }
+                const evals = await response.json();
                 
-                if (items.error) {
-                    throw new Error(items.error + (items.message ? ': ' + items.message : ''));
-                }
-                
-                if (!Array.isArray(items)) {
-                    if (items['o:item'] || items['o:items']) {
-                        items = items['o:item'] || items['o:items'] || [];
-                    } else if (items['@context'] && items['@id']) {
-                        items = [items];
-                    } else {
-                        items = [];
-                    }
-                }
-                
-                // Filtrer et transformer les évaluations
-                const evals = [];
-                
-                console.log(`Total items reçus: ${items.length}`);
-                
-                for (const item of items) {
-                    const itemType = item['o:resource_class'] ? item['o:resource_class']['@id'] : null;
-                    const isEvaluation = itemType && itemType.includes('master-eval#Evaluation');
-                    
-                    console.log(`Item ${item['o:id']}: type=${itemType}, isEvaluation=${isEvaluation}`);
-                    
-                    if (isEvaluation) {
-                        const evalItem = {
-                            id: item['o:id'] || '',
-                            note: null,
-                            etudiant: null,
-                            cours: null
-                        };
-
-                        // Récupérer la note
-                        const noteLinks = extractOmekaPropertyArray(item, 'me:aNote');
-                        if (noteLinks && noteLinks.length > 0) {
-                            const noteId = noteLinks[0]['o:id'] || noteLinks[0]['value_resource_id'];
-                            if (noteId) {
-                                try {
-                                    const noteUrl = `${PROXY_URL}?endpoint=items&item_id=${noteId}`;
-                                    const noteResponse = await fetch(noteUrl);
-                                    if (noteResponse.ok) {
-                                        const note = await noteResponse.json();
-                                        evalItem.note = extractOmekaProperty(note, 'me:valeurNote') || 'N/A';
-                                    }
-                                } catch (err) {
-                                    console.error(`Erreur récupération note ${noteId}:`, err);
-                                }
-                            }
-                        }
-
-                        // Récupérer l'étudiant
-                        const etudiantLinks = extractOmekaPropertyArray(item, 'me:concerneEtudiant');
-                        if (etudiantLinks && etudiantLinks.length > 0) {
-                            const etudiantId = etudiantLinks[0]['o:id'] || etudiantLinks[0]['value_resource_id'];
-                            if (etudiantId) {
-                                try {
-                                    const etudiantUrl = `${PROXY_URL}?endpoint=items&item_id=${etudiantId}`;
-                                    const etudiantResponse = await fetch(etudiantUrl);
-                                    if (etudiantResponse.ok) {
-                                        const etudiant = await etudiantResponse.json();
-                                        evalItem.etudiant = extractOmekaProperty(etudiant, 'dcterms:title') || 
-                                                           extractOmekaProperty(etudiant, 'foaf:name') ||
-                                                           `Étudiant ${etudiantId}`;
-                                    }
-                                } catch (err) {
-                                    console.error(`Erreur récupération étudiant ${etudiantId}:`, err);
-                                }
-                            }
-                        }
-
-                        // Récupérer le cours
-                        const coursLinks = extractOmekaPropertyArray(item, 'me:concerneCours');
-                        if (coursLinks && coursLinks.length > 0) {
-                            const coursId = coursLinks[0]['o:id'] || coursLinks[0]['value_resource_id'];
-                            if (coursId) {
-                                try {
-                                    const coursUrl = `${PROXY_URL}?endpoint=items&item_id=${coursId}`;
-                                    const coursResponse = await fetch(coursUrl);
-                                    if (coursResponse.ok) {
-                                        const cours = await coursResponse.json();
-                                        evalItem.cours = extractOmekaProperty(cours, 'dcterms:title') || 
-                                                       `Cours ${coursId}`;
-                                    }
-                                } catch (err) {
-                                    console.error(`Erreur récupération cours ${coursId}:`, err);
-                                }
-                            }
-                        }
-
-                        evals.push(evalItem);
-                    }
+                if (!Array.isArray(evals)) {
+                    console.warn('Format de réponse inattendu:', evals);
+                    return [];
                 }
 
                 console.log(`Évaluations trouvées: ${evals.length}`);
@@ -309,30 +208,6 @@
             }
         }
 
-        // Fonction utilitaire pour extraire une propriété
-        function extractOmekaProperty(item, propertyName) {
-            if (!item || !item[propertyName]) return null;
-            
-            const property = item[propertyName];
-            if (Array.isArray(property) && property.length > 0) {
-                const firstProp = property[0];
-                return firstProp['@value'] || firstProp['value'] || firstProp['o:label'] || firstProp;
-            }
-            return property['@value'] || property['value'] || property['o:label'] || property;
-        }
-
-        // Fonction utilitaire pour extraire un tableau de propriétés
-        function extractOmekaPropertyArray(item, propertyName) {
-            if (!item || !item[propertyName]) return [];
-            
-            const property = item[propertyName];
-            if (Array.isArray(property)) {
-                return property;
-            }
-            return [property];
-        }
-
-        // Fonction pour afficher les évaluations
         async function showEval() {
             const container = document.getElementById('evals-container');
             const loading = document.getElementById('loading');
@@ -351,22 +226,18 @@
                 return;
             }
             
-            // Afficher chaque évaluation
             evals.forEach(evalItem => {
                 const evalDiv = document.createElement('div');
                 evalDiv.className = 'eval-item';
                 
-                // Identifiant de l'évaluation
                 const idDiv = document.createElement('div');
                 idDiv.className = 'eval-id';
                 idDiv.textContent = `Identifiant: ${evalItem.id}`;
                 
-                // Note
                 const noteDiv = document.createElement('div');
                 noteDiv.className = 'eval-note';
-                noteDiv.textContent = `Note: ${evalItem.note !== null ? evalItem.note : 'N/A'}`;
+                noteDiv.textContent = `Note: ${evalItem.note !== null && evalItem.note !== undefined ? evalItem.note : 'N/A'}`;
                 
-                // Étudiant
                 const etudiantDiv = document.createElement('div');
                 etudiantDiv.className = 'eval-etudiant';
                 const etudiantLabel = document.createElement('span');
@@ -375,7 +246,6 @@
                 etudiantDiv.appendChild(etudiantLabel);
                 etudiantDiv.appendChild(document.createTextNode(evalItem.etudiant || 'Non spécifié'));
                 
-                // Cours
                 const coursDiv = document.createElement('div');
                 coursDiv.className = 'eval-cours';
                 const coursLabel = document.createElement('span');

@@ -72,17 +72,20 @@
     <div id="error" style="text-align: center; padding: 20px; color: red; display: none;"></div>
 
     <script>
-        // Configuration du proxy PHP (contourne CORS)
-        const PROXY_URL = 'api_proxy.php';
-        const OMEKA_S_URL = 'http://localhost/omk_thyp_25-26_clone';
+        // Configuration de l'API (récupération depuis MySQL)
+        const API_URL = 'api_bdd.php';
         
-        // Fonction pour récupérer la liste des cours depuis Omeka S via le proxy PHP
+        // Configuration Omeka S (gardée pour référence)
+        const OMEKA_S_URL = 'http://localhost/omk_thyp_25-26_clone';
+        const KEY_IDENTITY = 'EI6g2wROVTOiIBHmTf0roMIL647UenRu';
+        const KEY_CREDENTIAL = 'JaOh8wKwDo2hTiR66uDjiMGaYoNsCiOj';
+        
+        // Fonction pour récupérer la liste des cours depuis MySQL
         async function getCours() {
             try {
-                // Utiliser le proxy PHP pour contourner CORS
-                const url = `${PROXY_URL}?endpoint=items`;
+                const url = `${API_URL}?endpoint=cours`;
+                console.log('Requête vers:', url);
                 
-                // Récupérer tous les items depuis Omeka S via le proxy
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -91,107 +94,41 @@
                     }
                 });
 
+                console.log('Réponse reçue, status:', response.status, response.statusText);
+
+                // Récupérer le texte brut d'abord pour voir ce qui est retourné
+                const responseText = await response.text();
+                console.log('Réponse texte (premiers 500 caractères):', responseText.substring(0, 500));
+
                 if (!response.ok) {
-                    const errorData = await response.text();
                     let errorMessage = `Erreur HTTP: ${response.status}`;
                     try {
-                        const errorJson = JSON.parse(errorData);
+                        const errorJson = JSON.parse(responseText);
                         errorMessage += ' - ' + (errorJson.error || errorJson.message || JSON.stringify(errorJson));
                     } catch (e) {
-                        errorMessage += ' - ' + errorData.substring(0, 100);
+                        errorMessage += ' - Réponse: ' + responseText.substring(0, 200);
                     }
                     throw new Error(errorMessage);
                 }
 
-                const responseText = await response.text();
-                let items;
+                // Parser le JSON
+                let cours;
                 try {
-                    items = JSON.parse(responseText);
+                    cours = JSON.parse(responseText);
                 } catch (e) {
-                    console.error('Réponse reçue:', responseText.substring(0, 500));
-                    throw new Error(`Erreur de parsing JSON: ${e.message}. Réponse: ${responseText.substring(0, 200)}`);
+                    console.error('Erreur de parsing JSON:', e);
+                    console.error('Texte reçu:', responseText);
+                    throw new Error(`Erreur de parsing JSON: ${e.message}. Réponse reçue: ${responseText.substring(0, 200)}`);
                 }
                 
-                // Vérifier si la réponse contient une erreur
-                if (items.error) {
-                    throw new Error(items.error + (items.message ? ': ' + items.message : ''));
+                // Vérifier si c'est une erreur
+                if (cours.error) {
+                    throw new Error(cours.error + (cours.message ? ': ' + cours.message : ''));
                 }
                 
-                // Si items n'est pas un tableau, essayer de le convertir
-                if (!Array.isArray(items)) {
-                    if (items['o:item'] || items['o:items']) {
-                        items = items['o:item'] || items['o:items'] || [];
-                    } else if (items['@context'] && items['@id']) {
-                        // C'est un seul item, le mettre dans un tableau
-                        items = [items];
-                    } else {
-                        console.warn('Format de réponse inattendu:', items);
-                        items = [];
-                    }
-                }
-                
-                // Filtrer et transformer les données Omeka S
-                const cours = [];
-                
-                console.log(`Total items reçus: ${items.length}`);
-                
-                for (const item of items) {
-                    // Vérifier si l'item est de type "Cours" selon le vocabulaire
-                    const itemType = item['o:resource_class'] ? item['o:resource_class']['@id'] : null;
-                    const isCours = itemType && itemType.includes('master-eval#Cours');
-                    
-                    console.log(`Item ${item['o:id']}: type=${itemType}, isCours=${isCours}`);
-                    
-                    // Alternative: vérifier par resource template ou par propriété
-                    // Pour le test, on accepte aussi les items avec un titre (peut être temporaire)
-                    if (isCours || item['o:resource_template'] || item['dcterms:title']) {
-                        const coursItem = {
-                            id: item['o:id'] || item.id || '',
-                            titre: extractOmekaProperty(item, 'dcterms:title') || 'Sans titre',
-                            etudiants: []
-                        };
-
-                        // Récupérer les étudiants associés à ce cours via la propriété concerneEtudiant
-                        // Il faut faire un appel supplémentaire pour récupérer les étudiants liés
-                        const etudiantsLinks = extractOmekaPropertyArray(item, 'me:concerneEtudiant');
-                        
-                        if (etudiantsLinks && etudiantsLinks.length > 0) {
-                            // Pour chaque lien vers un étudiant, récupérer les détails
-                            for (const etudiantLink of etudiantsLinks) {
-                                const etudiantId = etudiantLink['o:id'] || etudiantLink['value_resource_id'];
-                                if (etudiantId) {
-                                    try {
-                                        // Utiliser le proxy PHP pour récupérer l'étudiant
-                                        const etudiantUrl = `${PROXY_URL}?endpoint=items&item_id=${etudiantId}`;
-                                        
-                                        const etudiantResponse = await fetch(etudiantUrl, {
-                                            headers: {
-                                                'Accept': 'application/json'
-                                            }
-                                        });
-                                        
-                                        if (etudiantResponse.ok) {
-                                            const etudiant = await etudiantResponse.json();
-                                            const nomEtudiant = extractOmekaProperty(etudiant, 'dcterms:title') || 
-                                                               extractOmekaProperty(etudiant, 'foaf:name') ||
-                                                               `Étudiant ${etudiantId}`;
-                                            coursItem.etudiants.push(nomEtudiant);
-                                        }
-                                    } catch (err) {
-                                        console.error(`Erreur lors de la récupération de l'étudiant ${etudiantId}:`, err);
-                                    }
-                                } else {
-                                    // Si c'est directement une valeur texte
-                                    const nomEtudiant = etudiantLink['@value'] || etudiantLink['value'] || etudiantLink;
-                                    if (typeof nomEtudiant === 'string') {
-                                        coursItem.etudiants.push(nomEtudiant);
-                                    }
-                                }
-                            }
-                        }
-
-                        cours.push(coursItem);
-                    }
+                if (!Array.isArray(cours)) {
+                    console.warn('Format de réponse inattendu:', cours);
+                    return [];
                 }
 
                 console.log(`Cours trouvés: ${cours.length}`);
@@ -204,44 +141,18 @@
             }
         }
 
-        // Fonction utilitaire pour extraire une propriété d'un item Omeka S
-        function extractOmekaProperty(item, propertyName) {
-            if (!item || !item[propertyName]) return null;
-            
-            const property = item[propertyName];
-            if (Array.isArray(property) && property.length > 0) {
-                const firstProp = property[0];
-                return firstProp['@value'] || firstProp['value'] || firstProp['o:label'] || firstProp;
-            }
-            return property['@value'] || property['value'] || property['o:label'] || property;
-        }
-
-        // Fonction utilitaire pour extraire un tableau de propriétés
-        function extractOmekaPropertyArray(item, propertyName) {
-            if (!item || !item[propertyName]) return [];
-            
-            const property = item[propertyName];
-            if (Array.isArray(property)) {
-                return property;
-            }
-            return [property];
-        }
-
         // Fonction pour afficher la liste des cours
         async function showCours() {
             const container = document.getElementById('cours-container');
             const loading = document.getElementById('loading');
             const error = document.getElementById('error');
             
-            // Afficher le message de chargement
             loading.style.display = 'block';
             error.style.display = 'none';
             container.innerHTML = '';
             
-            // Récupérer les cours depuis Omeka S
             const cours = await getCours();
             
-            // Masquer le message de chargement
             loading.style.display = 'none';
             
             if (cours.length === 0) {
@@ -249,22 +160,18 @@
                 return;
             }
             
-            // Parcourir chaque cours et l'afficher
             cours.forEach(coursItem => {
                 const coursDiv = document.createElement('div');
                 coursDiv.className = 'cours-item';
                 
-                // Identifiant
                 const idDiv = document.createElement('div');
                 idDiv.className = 'cours-id';
-                idDiv.textContent = `Identifiant: ${coursItem.id}`;
+                idDiv.textContent = `Identifiant: ${coursItem.code || coursItem.id}`;
                 
-                // Titre
                 const titreDiv = document.createElement('div');
                 titreDiv.className = 'cours-titre';
-                titreDiv.textContent = coursItem.titre;
+                titreDiv.textContent = coursItem.titre || 'Sans titre';
                 
-                // Liste des étudiants
                 const etudiantsDiv = document.createElement('div');
                 etudiantsDiv.className = 'etudiants-list';
                 const etudiantsTitle = document.createElement('h3');
